@@ -17,4 +17,11 @@ CHIP PC {
 
     PARTS:
     // Put your code here:
+
+    Inc16(in=Out, out=incVal);
+    Mux16(a=Out, b=incVal, sel=inc, out=valOne);
+    Mux16(a=valOne, b=in, sel=load, out=valTwo);
+    Mux16(a=valTwo, b=false, sel=reset, out=valThree);
+    Register(in=valThree, load=true, out=Out);
+    HalfAnd16(a=true, b=Out, out=out);
 }
