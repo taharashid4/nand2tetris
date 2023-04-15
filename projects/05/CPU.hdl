@@ -40,4 +40,78 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+
+    // ALU Combinational Logic
+
+    Mux16(a=instruction, b=ALUOut, sel=instruction[15], out=decodedInstr);
+
+    // The control bit for A will be '1' when there's either an A-instruction, or if
+    // the A dest bit (5) is activated in case of a C-instruction
+    And(a=instruction[5], b=instruction[15], out=activAOne);
+    Not(in=instruction[15], out=notInstBit);
+    Or(a=notInstBit, b=activAOne, out=activABit);
+
+    And(a=instruction[4], b=instruction[15], out=activDBit); // Control bit to load the D Register
+    And(a=instruction[3], b=instruction[15], out=writeM); // Control bit to write to M Register
+
+    ARegister(in=decodedInstr, load=activABit, out=AReg);
+    DRegister(in=ALUOut, load=activDBit, out=DReg);
+
+    Mux16(a=AReg, b=inM, sel=instruction[12], out=AMuxM);
+
+    ALU(x=DReg, y=AMuxM, zx=instruction[11], nx=instruction[10],
+    zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6],
+    out=ALUOut, zr=outZeroed, ng=outNeg);
+
+    And16(a=true, b=ALUOut, out=outM);
+    And16(a=AReg, b=true, out[0..14]=addressM);
+
+    // Program Counter Logic
+
+    // Doing this to shorten the amount I have to type
+    And(a=instruction[0], b=true, out=Zero);
+    And(a=instruction[1], b=true, out=One);
+    And(a=instruction[2], b=true, out=Two);
+    And(a=instruction[15], b=true, out=activ);
+
+    Not(in=outZeroed, out=notOutZeroed);
+    Not(in=outNeg, out=notOutNeg);
+
+    Not(in=instruction[0], out=notZero);
+    Not(in=instruction[1], out=notOne);
+    Not(in=instruction[2], out=notTwo);
+
+    // The logic begins here    
+
+    And4Way(a=Zero, b=notOne, c=notTwo, d=activ, out=JGT); // Jump If > 0
+    And4Way(a=notZero, b=One, c=notTwo, d=activ, out=JEQ); // Jump If = 0
+    And4Way(a=Zero, b=One, c=notTwo, d=activ, out=JGE); // Jump if >= 0
+    And4Way(a=notZero, b=notOne, c=Two, d=activ, out=JLT); // Jump if < 0
+    And4Way(a=Zero, b=notOne, c=Two, d=activ, out=JNE); // Jump if != 0
+    And4Way(a=notZero, b=One, c=Two, d=activ, out=JLE); // Jump if <= 0
+
+    And4Way(a=Zero, b=One, c=Two, d=activ, out=alwaysJump); // Unconditional Jump
+
+    And4Way(a=JGT, b=notOutZeroed, c=notOutNeg, d=true, out=loadOne);
+    And4Way(a=JEQ, b=outZeroed, c=notOutNeg, d=true, out=loadTwo);
+
+    And(a=JGE, b=notOutNeg, out=loadThree);
+
+    And4Way(a=JLT, b=notOutZeroed, c=outNeg, d=true, out=loadFour);
+    And(a=JNE, b=notOutZeroed, out=loadFive);
+
+    Or(a=outZeroed, b=outNeg, out=LEControl);
+    And(a=JLE, b=LEControl, out=loadSix);
+
+    Mux(a=false, b=JGT, sel=loadOne, out=muxLoadOne);
+    Mux(a=muxLoadOne, b=JEQ, sel=loadTwo, out=muxLoadTwo);
+    Mux(a=muxLoadTwo, b=JGE, sel=loadThree, out=muxLoadThree);
+    Mux(a=muxLoadThree, b=JLT, sel=loadFour, out=muxLoadFour);
+    Mux(a=muxLoadFour, b=JNE, sel=loadFive, out=muxLoadFive);
+    Mux(a=muxLoadFive, b=JLE, sel=loadSix, out=muxLoadSix);
+    Mux(a=muxLoadSix, b=true, sel=alwaysJump, out=loadBit);
+
+    Not(in=loadBit, out=incBit); // If the PC doesn't jump, then it'll increment.
+
+    PC(in=AReg, load=loadBit, inc=incBit, reset=reset, out[0..14]=pc);
 }

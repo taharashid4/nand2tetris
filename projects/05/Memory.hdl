@@ -28,4 +28,51 @@ CHIP Memory {
 
     PARTS:
     // Put your code here:
+
+    // For address[13,14] = 00 or 01, memory address < 16384.
+    // For addres[13,14] = 11, mem address = 24576 (KBD bit) ONLY if all other bits are 0.
+    DMux4Way(in=true, sel=address[13..14], a=memoryBit1, b=memoryBit2, c=screenBit, d=tempKBDBit);
+
+    // Manually doing this instead of creating a separate chip because I'm too lazy
+    Or(a=address[12], b=false, out=w1);
+    Or(a=address[11], b=w1, out=w2);
+    Or(a=address[10], b=w2, out=w3);
+    Or(a=address[9], b=w3, out=w4);
+    Or(a=address[8], b=w4, out=w5);
+    Or(a=address[7], b=w5, out=w6);
+    Or(a=address[6], b=w6, out=w7);
+    Or(a=address[5], b=w7, out=w8);
+    Or(a=address[4], b=w8, out=w9);
+    Or(a=address[3], b=w9, out=w10);
+    Or(a=address[2], b=w10, out=w11);
+    Or(a=address[1], b=w11, out=w12);
+    Or(a=address[0], b=w12, out=KBDInactive);
+    Not(in=KBDInactive, out=tempKBD);
+
+    And(a=tempKBDBit, b=tempKBD, out=KBDBit);
+
+    Or(a=memoryBit1, b=memoryBit2, out=memoryBit);
+
+    And(a=memoryBit, b=load, out=writeToMem);
+    And(a=screenBit, b=load, out=writeToScreen);
+
+    RAM16K(in=in, load=writeToMem, address=address[0..13], out=dataMemory);
+    Screen(in=in, load=writeToScreen, address=address[0..12], out=screenMemory);
+    Keyboard(out=keyboardOut);
+
+    Mux16(a=dataMemory, b=screenMemory, sel=screenBit, out=outOne);
+    Mux16(a=outOne, b=keyboardOut, sel=KBDBit, out=out);
+    
 }
+
+
+
+
+
+
+
+
+
+
+
+
